@@ -36,7 +36,7 @@ class neuron:
 	def __init__(self):
 		self.v =  0
 		self.w = []
-		self.mutrate = 0.003
+		self.mutrate = 0.001
 		self.activation = linear
 		self.activ = 0
 		self.effect = 0
@@ -44,6 +44,7 @@ class neuron:
 	def reset(self):
 		self.v = 0
 		self.activ = 0
+		self.effect = 0
 
 	def setw(self, n):
 		for i in range(n):
@@ -68,6 +69,7 @@ class network:
 		self.net = []
 		self.b = 0
 		self.learn = 0.01
+		self.err = 0
 		for n in net:
 			layer = []
 			for i in range(n):
@@ -121,7 +123,20 @@ class network:
 	def output(self):
 		for x in self.net[len(self.net)-1]:
 			x.activate()
+
+	def print(self):
+		for x in self.net[len(self.net)-1]:
 			print(x.activ)
+
+	def geterr(self, fixdo):
+		olderr = self.err
+		self.err = 0
+		ol = self.net[len(self.net)-1]
+		for i in range(len(ol)):
+			oerr = ol[i].activ-fixdo[i]
+			self.err += oerr*oerr
+		self.err /= len(ol)
+	#get total error of the network
 
 	def setvariance(self, fixedo):
 		ol = self.net[len(self.net)-1]
@@ -130,7 +145,7 @@ class network:
 			ol[i].effect *= 2/len(ol)
 			ol[i].effect *=  derive(ol[i].activation, ol[i].v)
 		self.backpro(len(self.net)-2)
-
+	#set the variance of output: how much the estimated output is different from the correct output
 
 	def backpro(self, n):
 		if n==0:
@@ -145,31 +160,68 @@ class network:
 			x.effect*=derive(x.activation, x.v)
 
 		self.backpro(n-1)
+	#backpropagation is done here. Calculate how much each perceptron has effect on the variance
 
-	def modweights(self):
+	def findunit(self):
+		mag = 0
+		for x in self.net[0]:
+			dx = 0
+			for i in range(len(x.w)):
+				dx+=x.w[i]*self.net[1][i].effect
+			dx*=derive(x.activation, x.v)
+
+			mag+=(dx*dx)
+
 		for i in range(len(self.net)-1):
 			for x in self.net[i]:
 				for j in range(len(x.w)):
-					x.w[j]-=self.learn*x.activ*self.net[i+1][j].effect
+					dw = x.activ*self.net[i+1][j].effect
+					mag+=(dw*dw)
+		mag+=0
+		return mag
+	#find magnitude of the gradient vector. we want the unit change of error as 1, but de = dw^2 since we use gradient descending
+	#so, we need to make it into dw^2/mag^2: return mag^2 here
+
+	def modweights(self):
+		mag = self.findunit()
+		if mag==0 and self.err!=0:
+			print("local minimum entered")
+			return False
+		for i in range(len(self.net)-1):
+			for x in self.net[i]:
+				for j in range(len(x.w)):
+					dw = x.activ*self.net[i+1][j].effect
+					x.w[j]-=dw/mag*self.err
+					#Time complexity = O(log_n(self.err))
+					#change of err per epoch = err/n
+					#n=number of weights
+		return True
 
 	def fixnet(self, fixt):
+		self.geterr(fixt)
+		if self.err==0:
+			return
 		self.setvariance(fixt)
 		self.modweights()
 
-	def autolearningrate(self):
+	def autolearn(self):
+		pass
+
+	def generation(self):
 		pass
 
 
+a = network([2,2,2,2,1])
+a.setactive(relu)
 
-a = network([2,1])
-for i in range(300):
+
+for i in range(500):
 	a.input([1,2])
 	a.fixnet([3])
-for i in range(300):
-	a.input([3,4])
-	a.fixnet([7])
-for i in range(300):
-	a.input([1,4])
-	a.fixnet([5])
+	a.input([10,9])
+	a.fixnet([19])
 
-a.input([2,5])
+a.input([2,4])
+a.print()
+a.input([10,4])
+a.print()
