@@ -1,4 +1,6 @@
 import random
+import math
+from math import exp
 
 def relu(v):
 	if v<0:
@@ -9,6 +11,9 @@ def relu(v):
 def linear(v):
 	return v
 
+def ln(v):
+	return math.log(v)
+
 def derive(func, v):
 	if func == linear:
 		return 1
@@ -17,6 +22,10 @@ def derive(func, v):
 			return 1
 		else:
 			return 0
+	elif func == ln:
+		return 1/v
+	elif func == exp:
+		return exp(v)
 
 
 class var:
@@ -68,7 +77,7 @@ class network:
 	def __init__(self, net):
 		self.net = []
 		self.b = 0
-		self.learn = 0.01
+		self.learn = 1.05
 		self.err = 0
 		for n in net:
 			layer = []
@@ -191,7 +200,7 @@ class network:
 			for x in self.net[i]:
 				for j in range(len(x.w)):
 					dw = x.activ*self.net[i+1][j].effect
-					x.w[j]-=dw/mag*self.err
+					x.w[j]-=self.learn*dw/mag*self.err
 					#Time complexity = O(log_n(self.err))
 					#change of err per epoch = err/n
 					#n=number of weights
@@ -211,17 +220,32 @@ class network:
 		pass
 
 
-a = network([2,2,2,2,1])
-a.setactive(relu)
+a = network([2,2,2,1])
+a.setactive(linear)
+for x in a.net[1]:
+	x.activation = ln
 
+for x in a.net[2]:
+	x.activation = exp
 
-for i in range(500):
-	a.input([1,2])
+for i in range(1000):
+	a.input([2,3])
+	a.fixnet([6])
+	a.input([3,2])
+	a.fixnet([6])
+	a.input([3,4])
+	a.fixnet([12])
+	a.input([5,5])
+	a.fixnet([25])
+	a.input([1,3])
 	a.fixnet([3])
-	a.input([10,9])
-	a.fixnet([19])
+	a.input([3,1])
+	a.fixnet([3])
 
-a.input([2,4])
+print(a.err)
+
+a.input([4,4])
 a.print()
-a.input([10,4])
+
+a.input([5,2])
 a.print()
