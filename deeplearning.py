@@ -1,5 +1,6 @@
 import random
 import math
+from rawvar import rawvar as rv
 from math import exp
 
 def relu(v):
@@ -26,20 +27,6 @@ def derive(func, v):
 		return 1/v
 	elif func == exp:
 		return exp(v)
-
-
-class var:
-	def __init__(self, name="#n", n=1):
-		self.v ={}
-		self.v[name] = n
-
-	def __add__(self, other):
-		x = var()
-		temp = {}
-		for key in self.v:
-			pass
-
-
 
 class neuron:
 	def __init__(self):
@@ -137,6 +124,10 @@ class network:
 		for x in self.net[len(self.net)-1]:
 			print(x.activ)
 
+	def printrv(self):
+		for x in self.net[len(self.net)-1]:
+			print(x.activ.v)
+
 	def geterr(self, fixdo):
 		olderr = self.err
 		self.err = 0
@@ -220,32 +211,12 @@ class network:
 		pass
 
 
-a = network([2,2,2,1])
-a.setactive(linear)
-for x in a.net[1]:
-	x.activation = ln
+a = network([2,4,3,4,1])
 
-for x in a.net[2]:
-	x.activation = exp
-
-for i in range(1000):
-	a.input([2,3])
-	a.fixnet([6])
-	a.input([3,2])
-	a.fixnet([6])
-	a.input([3,4])
-	a.fixnet([12])
-	a.input([5,5])
-	a.fixnet([25])
-	a.input([1,3])
-	a.fixnet([3])
-	a.input([3,1])
-	a.fixnet([3])
+for i in range(500):
+	a.input([rv({"K":1, "Q":2}), rv({"K":2, "Q":3})])
+	a.fixnet([rv({"K":3, "Q":-1})])
 
 print(a.err)
-
-a.input([4,4])
-a.print()
-
-a.input([5,2])
-a.print()
+a.input([rv({"K":1, "Q":2}), rv({"K":2, "Q":3})])
+a.printrv()
