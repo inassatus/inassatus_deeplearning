@@ -1,5 +1,6 @@
 import random
 import math
+import rawvar
 from rawvar import rawvar as rv
 from math import exp
 
@@ -16,6 +17,7 @@ def ln(v):
 	return math.log(v)
 
 def derive(func, v):
+
 	if func == linear:
 		return 1
 	elif func == relu:
@@ -27,6 +29,10 @@ def derive(func, v):
 		return 1/v
 	elif func == exp:
 		return exp(v)
+	else:
+		if type(v)==rv:
+			return rawvar.derive(func, v)
+
 
 class neuron:
 	def __init__(self):
@@ -64,7 +70,7 @@ class network:
 	def __init__(self, net):
 		self.net = []
 		self.b = 0
-		self.learn = 1.05
+		self.learn = 1.00
 		self.err = 0
 		for n in net:
 			layer = []
@@ -122,11 +128,10 @@ class network:
 
 	def print(self):
 		for x in self.net[len(self.net)-1]:
-			print(x.activ)
-
-	def printrv(self):
-		for x in self.net[len(self.net)-1]:
-			print(x.activ.v)
+			if type(x.activ)==rv:
+				print(x.activ.v)
+			else:
+				print(x.activ)			
 
 	def geterr(self, fixdo):
 		olderr = self.err
@@ -211,12 +216,13 @@ class network:
 		pass
 
 
-a = network([2,4,3,4,1])
+a = network([2,10,10,20,1])
+a.setactive(rawvar.rawrelu)
 
-for i in range(500):
+for i in range(400):
 	a.input([rv({"K":1, "Q":2}), rv({"K":2, "Q":3})])
-	a.fixnet([rv({"K":3, "Q":-1})])
+	a.fixnet([rv({"K":3, "Q":7})])
 
 print(a.err)
 a.input([rv({"K":1, "Q":2}), rv({"K":2, "Q":3})])
-a.printrv()
+a.print()
