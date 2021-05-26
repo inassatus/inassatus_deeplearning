@@ -16,6 +16,8 @@ def linear(v):
 def ln(v):
 	if v>0:
 		return math.log(v)
+	elif v<0:
+		return -1*math.log(-1*v)
 	else:
 		return 0
 
@@ -30,6 +32,8 @@ def derive(func, v):
 			return 0
 	elif func == ln:
 		if v>0:
+			return 1/v
+		elif v<0:
 			return 1/v
 		else:
 			return 0
@@ -147,7 +151,14 @@ class network:
 			return True
 		#this setting will allow the relation between inputs
 
-
+	def revive(self):
+		print("reviving process initiated")
+		for x in self.net:
+			for y in x:
+				for z in y.w:
+					if z==0:
+						z=random.random()
+		print("reviving process completed")
 
 	def input(self, input):
 		self.reset()
@@ -172,6 +183,15 @@ class network:
 			else:
 				print(x.activ)			
 
+	def geto(self):
+		ret = []
+		for x in self.net[-1]:
+			if type(x.activ)==rv:
+				ret.append(x.activ.v)
+			else:
+				ret.append(x.activ)
+		return ret
+
 	def geterr(self, fixdo):
 		olderr = self.err
 		self.err = 0
@@ -181,6 +201,12 @@ class network:
 			self.err += oerr*oerr
 		self.err /= len(ol)
 	#get total error of the network
+
+	def getinputgrad(self):
+		ret = []
+		for x in self.net[0]:
+			ret.append(x.effect)
+		return ret
 
 	def setvariance(self, fixedo):
 		ol = self.net[len(self.net)-1]
@@ -192,7 +218,7 @@ class network:
 	#set the variance of output: how much the estimated output is different from the correct output
 
 	def backpro(self, n):
-		if n==0:
+		if n==-1:
 			return
 
 		nlayer = self.net[n]
@@ -209,18 +235,20 @@ class network:
 	def findunit(self):
 		mag = 0
 		for x in self.net[0]:
-			dx = 0
-			for i in range(len(x.w)):
-				dx+=x.w[i]*self.net[1][i].effect
-			dx*=derive(x.activation, x.v)
-
-			mag+=(dx*dx)
+			mag+=(x.effect*x.effect)
 
 		for i in range(len(self.net)-1):
 			for x in self.net[i]:
 				for j in range(len(x.w)):
 					dw = x.activ*self.net[i+1][j].effect
 					mag+=(dw*dw)
+
+		for i in range(1, len(self.net)-1):
+			db = 0
+			for j in range(len(self.net[i][-1].w)):
+				db+=self.net[i][-1].w[j]*self.net[i+1][j].effect
+			db*=derive(self.net[i][-1].activation, self.net[i][-1].v)
+			mag+=(db*db)
 		mag+=0
 		return mag
 	#find magnitude of the gradient vector. we want the unit change of error as 1, but de = dw^2 since we use gradient descending
@@ -250,7 +278,11 @@ class network:
 			return
 		self.setvariance(fixt)
 		if not self.modweights():
-			self.mutate()
+			self.revive()
+
+	def optimize(self, variable, observed):
+		self.input(variable)
+		self.fixnet(observed)
 
 	def autolearn(self):
 		pass
@@ -264,18 +296,3 @@ class network:
 		ret.learn = self.learn
 		return ret
 
-a = network([2, 5, 4, 5, 1])
-
-for i in range(400):
-	a.input([2, 2])
-	a.fixnet([4])
-	a.input([3, 2])
-	a.fixnet([5])
-	a.input([1, 2])
-	a.fixnet([3])
-	a.input([0, 0])
-	a.fixnet([0])
-
-print(a.err)
-a.input([2, 5])
-a.print()

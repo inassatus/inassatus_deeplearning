@@ -1,5 +1,8 @@
 import numpy as np
+import random
+from deeplearning import network as nn
 from PIL import Image as pimg
+import time
 
 def img2arr(name):
 	img = pimg.open(name)
@@ -9,9 +12,6 @@ def img2arr(name):
 def avgpool_color(img, n):
 #make smaller img array by putting each cell the average value of the cover respectively
 #this method makes more precise pooling than maxpool does
-
-	base = 255
-	#this value is what pad value is
 
 	row = len(img)
 	st_r = round(row/n)
@@ -31,21 +31,23 @@ def avgpool_color(img, n):
 	d = len(img[0][0])
 
 	rv = []
-	for i in range(-1, st_r+1):
+	for i in range(0, st_r):
 		cv = []
-		for j in range(-1, st_c+1):
+		for j in range(0, st_c):
 			dv = []
 			for k in range(d):
 				sum = 0
+				count = 0
 				for t1 in range(n):
 					for t2 in range(n):
-						x = i*n+leftpad+t1
-						y = j*n+toppad+t2
+						x = i*n-leftpad+t1
+						y = j*n-toppad+t2
 						if x<0 or y<0 or x>=row or y>=col: 
-							sum+=base
+							sum+=0
 						else:
 							sum+=img[x][y][k]
-				sum = sum/n/n
+							count+=1
+				sum = sum/count
 				sum = round(sum)
 				dv.append(sum)
 			cv.append(dv)
@@ -56,9 +58,6 @@ def avgpool_color(img, n):
 
 def avgpool_mono(img, n):
 #mono color img implementation
-
-	base = 255
-	#this value is what pad value is
 
 	row = len(img)
 	st_r = round(row/n)
@@ -77,19 +76,21 @@ def avgpool_mono(img, n):
 	#==> the image is pooled into n time smaller image
 
 	rv = []
-	for i in range(-1, st_r+1):
+	for i in range(0, st_r):
 		cv = []
-		for j in range(-1, st_c+1):
+		for j in range(0, st_c0):
 			sum = 0
+			count=0
 			for t1 in range(n):
 				for t2 in range(n):
-					x = i*n+leftpad+t1
-					y = j*n+toppad+t2
+					x = i*n-leftpad+t1
+					y = j*n-toppad+t2
 					if x<0 or y<0 or x>=row or y>=col: 
-						sum+=base
+						sum+=0
 					else:
 						sum+=img[x][y]
-			sum = sum/n/n
+						count+=1
+			sum = sum/count
 			sum = round(sum)
 			cv.append(sum)
 		rv.append(cv)
@@ -102,7 +103,9 @@ def avgpool_mono(img, n):
 def maxpool_color(img, n):
 #makes smaller img array by putting the maximum value of the cover repectively
 #pooled image gets brighter since each cell get the highest rgb value.
-#however, this method is still useful in some cases: it performs better functioning than avgpool in some specific situation 
+#however, this method is still useful in some cases: it performs better functioning than avgpool in some specific situation
+#such as: pooling the covolution img
+#derivation is 0 when v is not the max value, and 1 when v is the max value (v is some random value in masked area)
 
 	row = len(img)
 	st_r = round(row/n)
@@ -122,16 +125,16 @@ def maxpool_color(img, n):
 	d = len(img[0][0])
 
 	rv = []
-	for i in range(-1, st_r+1):
+	for i in range(0, st_r):
 		cv = []
-		for j in range(-1, st_c+1):
+		for j in range(0, st_c):
 			dv = []
 			for k in range(d):
 				cover = []
 				for t1 in range(n):
 					for t2 in range(n):
-						x = i*n+leftpad+t1
-						y = j*n+toppad+t2
+						x = i*n-leftpad+t1
+						y = j*n-toppad+t2
 						if x<0 or y<0 or x>=row or y>=col: 
 							cover.append(0)
 						else:
@@ -182,11 +185,144 @@ def maxpool_mono(img, n):
 	ret = ret.astype(np.uint8)
 	return ret
 
+def applyfilt(img, filter):
+#accepts only mono image: need to divide rgb image into r-img, g-img, and b-img
+	row = len(img)
+	col = len(img[0])
+	xfilt = len(filter)
+	yfilt = len(filter[0])
 
-test2 = img2arr("test2.png")
-test2 = test2[:,:,1]
-pooled = maxpool_mono(test2, 3)
-print(test2.shape)
-print(pooled.shape)
-pooled = pimg.fromarray(pooled)
-pooled.show()
+	rv = []
+	for i in range(1-(xfilt-round(xfilt/2)), row-round(xfilt/2-1)):
+		cv = []
+		for j in range(1-(yfilt-round(yfilt/2)), col-round(yfilt/2-1)):
+			sum = 0
+			for x in range(xfilt):
+				for y in range(yfilt):
+					xcor = i+x
+					ycor = j+y
+					if xcor<0 or xcor>=row or ycor<0 or ycor>=col:
+						sum+=0
+					else:
+						sum+=img[xcor][ycor]*filter[x][y]
+			cv.append(sum)
+		rv.append(cv)
+	ret = np.array(rv)
+	ret = ret.astype(np.uint8)
+	return ret
+
+def reversefilt(filt):
+	ret = []
+	for i in range(len(filt)-1, -1, -1):
+		row = []
+		for j in range(len(filt[i])-1, -1, -1):
+			row.append(filt[i][j])
+		ret.append(row)
+	return ret
+
+
+class conv:
+	def __init__(self):
+		self.v = None
+		self.filt = []
+		self.effect = None
+
+	def setfilt(self, n, d):
+		for i in range(n):
+			fx = []
+			for j in range(d):
+				fy = []
+				for k in range(d):
+					fy.append(random.random())
+				fx.append(fy)
+			self.filt.append(fx)
+
+
+class cnn:
+	def __init__(self, net, filtsize):
+		self.net = []
+		self.size = net
+		self.err = 0
+		self.filtsize = filtsize
+		self.judge = None
+		self.img = None
+		self.err = []
+
+		for n in net:
+			layer = []
+			for i in range(n):
+				layer.append(conv())
+			self.net.append(layer)
+		self.setfilt()
+
+	def setfilt(self):
+		for i in range(len(self.net)-1):
+			for n in self.net[i]:
+				n.setfilt(len(self.net[i+1]), self.filtsize)
+
+	def input(self, img):
+		self.img = img
+		for i in range(len(self.net[0])):
+			self.net[0][i].v = img[:, :, i]
+		for i in range(1, len(self.net)):
+			for conv in self.net[i]:
+				conv.v = np.zeros((len(img), len(img[0])), dtype=np.uint8)
+		for i in range(len(self.net)-1):
+			for x in self.net[i]:
+				for j in range(len(x.filt)):
+					self.net[i+1][j].v+=applyfilt(x.v, x.filt[j])
+		
+	def setjudge(self, size):
+		fixedsize = len(self.img)*len(self.img[0])
+		if size[0]!=fixedsize:
+			print("given size is not allowed: input size must be ", fixedsize)
+			return
+		self.judge = nn(size)
+		print("judgement setting complete")
+
+	def applyjudge(self):
+		inputimg = self.net[-1][0].v
+		inputimg = input.flatten()
+		self.judge.input(inputimg)
+
+	def printjudge(self):
+		self.judge.print()
+
+	def fixjudge(self, fixed):
+		self.judge.fixnet(fixed)
+		self.geteffect()
+		self.backpro(len(self.net)-2)
+
+	def geteffect(self):
+		err = self.judge.getinputgrad()
+		dimg=np.array(err)
+		dimg=err*2/len(err)
+		dimg = dimg.reshape(len(self.img), len(self.img[0]))
+		self.net[-1][0].effect = dimg
+		
+		self.err = 0
+		for x in err:
+			self.err+=(x*x)
+		self.err /= len(err)
+
+	def backpro(self, n):
+		if n == -1:
+			return
+
+		nlayer = self.net[n]
+		elayer = self.net[n+1]
+		for x in nlayer:
+			x.effect = np.zeros((len(self.img), len(self.img[0])), dtype = np.uint8)
+			for i in range(len(x.filt)):
+				x.effect+=applyfilt(elayer[i].effect, reversefilt(x.filt[i]))
+
+		self.backpro(n-1)
+		#algorithm here, the backpropagation, is exactly same as the algorithm that I used in deeplearning.py
+		#the reason why I use reversed filter here is because the order in application of mask is reverse in effect array
+
+
+#test2 = img2arr("test.jpg")
+#print(test2.shape)
+#test2 = avgpool_color(test2, 5)
+#pooled = pimg.fromarray(test2)
+#pooled.show()
