@@ -295,4 +295,3 @@ class network:
 		ret.b = self.b
 		ret.learn = self.learn
 		return ret
-

@@ -191,11 +191,11 @@ def applyfilt(img, filter):
 	col = len(img[0])
 	xfilt = len(filter)
 	yfilt = len(filter[0])
-
+	img = img.astype(float)
 	rv = []
-	for i in range(1-(xfilt-round(xfilt/2)), row-round(xfilt/2-1)):
+	for i in range(0-(xfilt-round(xfilt/2)), row-1-round(xfilt/2-1)):
 		cv = []
-		for j in range(1-(yfilt-round(yfilt/2)), col-round(yfilt/2-1)):
+		for j in range(0-(yfilt-round(yfilt/2)), col-1-round(yfilt/2-1)):
 			sum = 0
 			for x in range(xfilt):
 				for y in range(yfilt):
@@ -208,7 +208,6 @@ def applyfilt(img, filter):
 			cv.append(sum)
 		rv.append(cv)
 	ret = np.array(rv)
-	ret = ret.astype(np.uint8)
 	return ret
 
 def reversefilt(filt):
@@ -220,6 +219,29 @@ def reversefilt(filt):
 		ret.append(row)
 	return ret
 
+def getdf(img, filt, effect):
+	row = len(img)
+	col = len(img[0])
+	xfilt = len(filt)
+	yfilt = len(filt[0])
+	ret = np.zeros((xfilt, yfilt), float)
+	a=0
+	for i in range(0-(xfilt-round(xfilt/2)), row-1-round(xfilt/2-1)):
+		b=0
+		for j in range(0-(yfilt-round(yfilt/2)), col-1-round(yfilt/2-1)):
+			for x in range(xfilt):
+				for y in range(yfilt):
+					xcor = i+x
+					ycor = j+y
+					if xcor<0 or xcor>=row or ycor<0 or ycor>=col:
+						ret[x][y]+=0
+					else:
+						ret[x][y]+=img[xcor][ycor]*effect[a][b]
+			b+=1
+		a+=1
+	return ret
+
+	
 
 class conv:
 	def __init__(self):
@@ -244,9 +266,10 @@ class cnn:
 		self.size = net
 		self.err = 0
 		self.filtsize = filtsize
+		self.learn = -1.0
 		self.judge = None
 		self.img = None
-		self.err = []
+		net.append(1)
 
 		for n in net:
 			layer = []
@@ -266,7 +289,7 @@ class cnn:
 			self.net[0][i].v = img[:, :, i]
 		for i in range(1, len(self.net)):
 			for conv in self.net[i]:
-				conv.v = np.zeros((len(img), len(img[0])), dtype=np.uint8)
+				conv.v = np.zeros((len(img), len(img[0])), dtype=float)
 		for i in range(len(self.net)-1):
 			for x in self.net[i]:
 				for j in range(len(x.filt)):
@@ -274,15 +297,13 @@ class cnn:
 		
 	def setjudge(self, size):
 		fixedsize = len(self.img)*len(self.img[0])
-		if size[0]!=fixedsize:
-			print("given size is not allowed: input size must be ", fixedsize)
-			return
+		size.insert(0, fixedsize)
 		self.judge = nn(size)
 		print("judgement setting complete")
 
 	def applyjudge(self):
 		inputimg = self.net[-1][0].v
-		inputimg = input.flatten()
+		inputimg = inputimg.flatten()
 		self.judge.input(inputimg)
 
 	def printjudge(self):
@@ -292,11 +313,12 @@ class cnn:
 		self.judge.fixnet(fixed)
 		self.geteffect()
 		self.backpro(len(self.net)-2)
+		self.modfilts()
 
 	def geteffect(self):
 		err = self.judge.getinputgrad()
 		dimg=np.array(err)
-		dimg=err*2/len(err)
+		dimg = dimg.astype(float)
 		dimg = dimg.reshape(len(self.img), len(self.img[0]))
 		self.net[-1][0].effect = dimg
 		
@@ -312,7 +334,7 @@ class cnn:
 		nlayer = self.net[n]
 		elayer = self.net[n+1]
 		for x in nlayer:
-			x.effect = np.zeros((len(self.img), len(self.img[0])), dtype = np.uint8)
+			x.effect = np.zeros((len(self.img), len(self.img[0])), dtype = float)
 			for i in range(len(x.filt)):
 				x.effect+=applyfilt(elayer[i].effect, reversefilt(x.filt[i]))
 
@@ -320,9 +342,48 @@ class cnn:
 		#algorithm here, the backpropagation, is exactly same as the algorithm that I used in deeplearning.py
 		#the reason why I use reversed filter here is because the order in application of mask is reverse in effect array
 
+	def findunit(self):
+		mag = 0
+		for e in self.net[0]:
+			for x in e.effect:
+				for y in x:
+					mag+=(y*y)
 
-#test2 = img2arr("test.jpg")
-#print(test2.shape)
-#test2 = avgpool_color(test2, 5)
+		for i in range(len(self.net)-1):
+			for x in self.net[i]:
+				for j in range(len(x.filt)):
+					df = getdf(x.v, x.filt[j], self.net[i+1][j].effect)
+					for a in df:
+						for b in a:
+							mag+=(b*b)
+
+		mag += 0
+		return mag
+
+	def modfilts(self):
+		mag = self.findunit()
+
+		for i in range(len(self.net)-1):
+			for x in self.net[i]:
+				for j in range(len(x.filt)):
+					df = getdf(x.v, x.filt[j], self.net[i+1][j].effect)
+					x.filt[j]+=self.learn*df/mag*self.judge.err
+
+
+
+test2 = img2arr("test.jpg")
+print(test2.shape)
+test2 = avgpool_color(test2, 50)
+print("pooled")
+a = cnn([3, 3], 5)
+a.input(test2)
+a.setjudge([10, 12, 12, 1])
+print("judgement set")
+
+for i in range(50):
+	a.input(test2)
+	a.applyjudge()
+	a.printjudge()
+	a.fixjudge([1])
 #pooled = pimg.fromarray(test2)
 #pooled.show()
