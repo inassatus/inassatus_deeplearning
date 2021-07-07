@@ -21,6 +21,9 @@ def ln(v):
 	else:
 		return 0
 
+def sigmoid(v):
+	return 1/(1+exp(-1*v))
+
 def derive(func, v):
 
 	if func == linear:
@@ -39,6 +42,8 @@ def derive(func, v):
 			return 0
 	elif func == exp:
 		return exp(v)
+	elif func==sigmoid:
+		return sigmoid(v)*(1-sigmoid(v))
 	else:
 		if type(v)==rv:
 			return rawvar.derive(func, v)
@@ -151,14 +156,8 @@ class network:
 			return True
 		#this setting will allow the relation between inputs
 
-	def revive(self):
-		print("reviving process initiated")
-		for x in self.net:
-			for y in x:
-				for z in y.w:
-					if z==0:
-						z=random.random()
-		print("reviving process completed")
+	def yesorno(self):
+		pass
 
 	def input(self, input):
 		self.reset()
@@ -278,7 +277,7 @@ class network:
 			return
 		self.setvariance(fixt)
 		if not self.modweights():
-			self.revive()
+			print("check the derivation carefully, zero production may happened")
 
 	def optimize(self, variable, observed):
 		self.input(variable)
